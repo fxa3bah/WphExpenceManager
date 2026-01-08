@@ -10,6 +10,7 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -33,10 +34,15 @@ export default function SignupPage() {
       if (authError) throw authError
 
       if (authData.user) {
-        // User profile is created automatically by database trigger
-        // Redirect to dashboard
-        router.push('/dashboard')
-        router.refresh()
+        // Check if email confirmation is required
+        if (authData.session) {
+          // Email confirmation disabled - redirect to dashboard
+          router.push('/dashboard')
+          router.refresh()
+        } else {
+          // Email confirmation required - show success message
+          setSuccess(true)
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Failed to sign up')
@@ -53,13 +59,24 @@ export default function SignupPage() {
             Sign Up for WPH Expense Manager
           </h1>
 
+          {success && (
+            <div className="mb-4 p-4 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg">
+              <h3 className="font-semibold mb-2">Check your email!</h3>
+              <p className="text-sm">
+                We've sent a confirmation link to <strong>{email}</strong>.
+                Please click the link to verify your account and complete the signup process.
+              </p>
+            </div>
+          )}
+
           {error && (
             <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSignup} className="space-y-4">
+          {!success && (
+            <form onSubmit={handleSignup} className="space-y-4">
             <div>
               <label htmlFor="fullName" className="block text-sm font-medium mb-2">
                 Full Name
@@ -117,6 +134,7 @@ export default function SignupPage() {
               {loading ? 'Creating account...' : 'Sign Up'}
             </button>
           </form>
+          )}
 
           <div className="mt-6 text-center text-sm">
             <span className="text-gray-600 dark:text-gray-400">
