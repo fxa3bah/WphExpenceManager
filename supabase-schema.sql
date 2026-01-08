@@ -215,7 +215,7 @@ CREATE POLICY "Managers can view their reports' receipts"
     ON storage.objects FOR SELECT
     USING (
         bucket_id = 'receipts' AND
-        (storage.foldername(name))[1]::uuid IN (
+        (storage.foldername(name))[1] IN (
             SELECT id::text FROM public.users WHERE manager_id = auth.uid()
         )
     );
