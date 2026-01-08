@@ -87,14 +87,12 @@ ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 -- Users table policies
 CREATE POLICY "Users can view their own profile"
     ON public.users FOR SELECT
-    USING (auth.uid() = id);
+    USING (auth.uid()::uuid = id);
 
 CREATE POLICY "Managers can view their reports"
     ON public.users FOR SELECT
     USING (
-        auth.uid() IN (
-            SELECT manager_id FROM public.users WHERE id = auth.uid()
-        )
+        manager_id = auth.uid()::uuid
     );
 
 CREATE POLICY "Admins can view all users"
@@ -102,54 +100,54 @@ CREATE POLICY "Admins can view all users"
     USING (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE id = auth.uid() AND role = 'admin'
+            WHERE id = auth.uid()::uuid AND role = 'admin'
         )
     );
 
 CREATE POLICY "Users can update their own profile"
     ON public.users FOR UPDATE
-    USING (auth.uid() = id);
+    USING (auth.uid()::uuid = id);
 
 CREATE POLICY "Admins can update all users"
     ON public.users FOR UPDATE
     USING (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE id = auth.uid() AND role = 'admin'
+            WHERE id = auth.uid()::uuid AND role = 'admin'
         )
     );
 
 CREATE POLICY "Users can insert their own profile"
     ON public.users FOR INSERT
-    WITH CHECK (auth.uid() = id);
+    WITH CHECK (auth.uid()::uuid = id);
 
 -- Trips table policies
 CREATE POLICY "Users can view their own trips"
     ON public.trips FOR SELECT
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::uuid = user_id);
 
 CREATE POLICY "Users can create their own trips"
     ON public.trips FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
+    WITH CHECK (auth.uid()::uuid = user_id);
 
 CREATE POLICY "Users can update their own trips"
     ON public.trips FOR UPDATE
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::uuid = user_id);
 
 CREATE POLICY "Users can delete their own trips"
     ON public.trips FOR DELETE
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::uuid = user_id);
 
 -- Expenses table policies
 CREATE POLICY "Users can view their own expenses"
     ON public.expenses FOR SELECT
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::uuid = user_id);
 
 CREATE POLICY "Managers can view their reports' expenses"
     ON public.expenses FOR SELECT
     USING (
         user_id IN (
-            SELECT id FROM public.users WHERE manager_id = auth.uid()
+            SELECT id FROM public.users WHERE manager_id = auth.uid()::uuid
         )
     );
 
@@ -158,23 +156,23 @@ CREATE POLICY "Admins can view all expenses"
     USING (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE id = auth.uid() AND role = 'admin'
+            WHERE id = auth.uid()::uuid AND role = 'admin'
         )
     );
 
 CREATE POLICY "Users can create their own expenses"
     ON public.expenses FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
+    WITH CHECK (auth.uid()::uuid = user_id);
 
 CREATE POLICY "Users can update their own expenses"
     ON public.expenses FOR UPDATE
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::uuid = user_id);
 
 CREATE POLICY "Managers can approve their reports' expenses"
     ON public.expenses FOR UPDATE
     USING (
         user_id IN (
-            SELECT id FROM public.users WHERE manager_id = auth.uid()
+            SELECT id FROM public.users WHERE manager_id = auth.uid()::uuid
         )
     );
 
@@ -183,13 +181,13 @@ CREATE POLICY "Admins can update all expenses"
     USING (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE id = auth.uid() AND role = 'admin'
+            WHERE id = auth.uid()::uuid AND role = 'admin'
         )
     );
 
 CREATE POLICY "Users can delete their own expenses"
     ON public.expenses FOR DELETE
-    USING (auth.uid() = user_id AND status = 'draft');
+    USING (auth.uid()::uuid = user_id AND status = 'draft');
 
 -- Storage bucket for receipts
 INSERT INTO storage.buckets (id, name, public)
@@ -216,7 +214,7 @@ CREATE POLICY "Managers can view their reports' receipts"
     USING (
         bucket_id = 'receipts' AND
         (storage.foldername(name))[1] IN (
-            SELECT id::text FROM public.users WHERE manager_id = auth.uid()
+            SELECT id::text FROM public.users WHERE manager_id = auth.uid()::uuid
         )
     );
 
@@ -226,7 +224,7 @@ CREATE POLICY "Admins can view all receipts"
         bucket_id = 'receipts' AND
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE id = auth.uid() AND role = 'admin'
+            WHERE id = auth.uid()::uuid AND role = 'admin'
         )
     );
 
