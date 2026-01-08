@@ -77,6 +77,26 @@ CREATE TRIGGER update_trips_updated_at BEFORE UPDATE ON public.trips
 CREATE TRIGGER update_expenses_updated_at BEFORE UPDATE ON public.expenses
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- Auto-create user profile on signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.users (id, email, full_name, role)
+    VALUES (
+        NEW.id,
+        NEW.email,
+        COALESCE(NEW.raw_user_meta_data->>'full_name', 'User'),
+        'employee'
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to auto-create user profile
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 -- Row Level Security (RLS) Policies
 
 -- Enable RLS on all tables
@@ -117,9 +137,8 @@ CREATE POLICY "Admins can update all users"
         )
     );
 
-CREATE POLICY "Users can insert their own profile"
-    ON public.users FOR INSERT
-    WITH CHECK (auth.uid()::uuid = id);
+-- Note: User profile creation is handled automatically by the on_auth_user_created trigger
+-- No manual INSERT policy needed for users table
 
 -- Trips table policies
 CREATE POLICY "Users can view their own trips"
