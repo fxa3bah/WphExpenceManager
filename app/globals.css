@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Mobile-first custom styles */
+.bottom-nav {
+  @apply fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800;
+  @apply flex justify-around items-center h-16 z-50;
+}
+
+.fab {
+  @apply fixed bottom-20 right-4 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg;
+  @apply flex items-center justify-center text-2xl font-bold;
+  @apply hover:bg-blue-700 active:scale-95 transition-all;
+  @apply z-40;
+}
+
+.skeleton {
+  @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
+}
