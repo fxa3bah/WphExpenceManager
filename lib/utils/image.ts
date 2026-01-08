@@ -51,7 +51,9 @@ export async function extractEXIF(file: File): Promise<ImageMetadata> {
     // Extract date taken
     if (tags.DateTime || tags.DateTimeOriginal) {
       const dateTag = tags.DateTimeOriginal || tags.DateTime
-      metadata.dateTaken = dateTag.description
+      if (dateTag && dateTag.description) {
+        metadata.dateTaken = dateTag.description
+      }
     }
 
     // Extract camera info
