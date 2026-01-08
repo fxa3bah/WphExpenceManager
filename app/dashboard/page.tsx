@@ -12,32 +12,29 @@ export default async function DashboardPage() {
     redirect('/auth/login')
   }
 
-  // Get user profile
-  const { data: profile } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', user.id)
-    .single()
+  // Run all queries in parallel for faster loading
+  const [
+    { data: profile },
+    { data: expenses }
+  ] = await Promise.all([
+    supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single(),
+    supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10)
+  ])
 
-  // Get recent expenses
-  const { data: expenses } = await supabase
-    .from('expenses')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(10)
-
-  // Get pending expenses for managers/admins
+  // Get pending expenses for managers/admins (only if needed)
   let pendingApprovals: any[] = []
   if (profile?.role === 'manager' || profile?.role === 'admin') {
-    const query = supabase
-      .from('expenses')
-      .select('*, users:user_id(full_name, email)')
-      .eq('status', 'pending')
-      .order('submitted_at', { ascending: true })
-
     if (profile.role === 'manager') {
-      // Get expenses from direct reports
+      // For managers: get reports first, then pending expenses
       const { data: reports } = await supabase
         .from('users')
         .select('id')
@@ -45,12 +42,25 @@ export default async function DashboardPage() {
 
       const reportIds = reports?.map(r => r.id) || []
       if (reportIds.length > 0) {
-        query.in('user_id', reportIds)
-      }
-    }
+        const { data } = await supabase
+          .from('expenses')
+          .select('*, users:user_id(full_name, email)')
+          .eq('status', 'pending')
+          .in('user_id', reportIds)
+          .order('submitted_at', { ascending: true })
 
-    const { data } = await query
-    pendingApprovals = data || []
+        pendingApprovals = data || []
+      }
+    } else {
+      // For admins: get all pending
+      const { data } = await supabase
+        .from('expenses')
+        .select('*, users:user_id(full_name, email)')
+        .eq('status', 'pending')
+        .order('submitted_at', { ascending: true })
+
+      pendingApprovals = data || []
+    }
   }
 
   // Calculate stats
