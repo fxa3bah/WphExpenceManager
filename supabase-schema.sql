@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS public.expenses (
     location TEXT,
     gps_coordinates JSONB,
     ocr_data JSONB,
+    entertainment_people_count INTEGER,
     status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending', 'approved', 'rejected')),
     submitted_at TIMESTAMP WITH TIME ZONE,
     approved_at TIMESTAMP WITH TIME ZONE,
@@ -50,6 +51,17 @@ CREATE TABLE IF NOT EXISTS public.expenses (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create manager_email_assignments table for pre-registration assignments
+CREATE TABLE IF NOT EXISTS public.manager_email_assignments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    manager_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    employee_email TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    assigned_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT valid_wphome_email CHECK (employee_email LIKE '%@wphome.com'),
+    UNIQUE(employee_email)
+);
+
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON public.expenses(user_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_trip_id ON public.expenses(trip_id);
@@ -57,6 +69,8 @@ CREATE INDEX IF NOT EXISTS idx_expenses_status ON public.expenses(status);
 CREATE INDEX IF NOT EXISTS idx_expenses_expense_date ON public.expenses(expense_date);
 CREATE INDEX IF NOT EXISTS idx_trips_user_id ON public.trips(user_id);
 CREATE INDEX IF NOT EXISTS idx_users_manager_id ON public.users(manager_id);
+CREATE INDEX IF NOT EXISTS idx_manager_email_assignments_employee_email ON public.manager_email_assignments(employee_email) WHERE assigned_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_manager_email_assignments_manager_id ON public.manager_email_assignments(manager_id);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -80,14 +94,34 @@ CREATE TRIGGER update_expenses_updated_at BEFORE UPDATE ON public.expenses
 -- Auto-create user profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+    pre_assigned_manager_id UUID;
 BEGIN
-    INSERT INTO public.users (id, email, full_name, role)
+    -- Check if this email has a pre-assignment
+    SELECT manager_id INTO pre_assigned_manager_id
+    FROM public.manager_email_assignments
+    WHERE employee_email = NEW.email
+    AND assigned_at IS NULL
+    LIMIT 1;
+
+    -- Create user profile
+    INSERT INTO public.users (id, email, full_name, role, manager_id)
     VALUES (
         NEW.id,
         NEW.email,
         COALESCE(NEW.raw_user_meta_data->>'full_name', 'User'),
-        'employee'
+        'employee',
+        pre_assigned_manager_id
     );
+
+    -- If there was a pre-assignment, mark it as assigned
+    IF pre_assigned_manager_id IS NOT NULL THEN
+        UPDATE public.manager_email_assignments
+        SET assigned_at = NOW()
+        WHERE employee_email = NEW.email
+        AND assigned_at IS NULL;
+    END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -140,6 +174,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.manager_email_assignments ENABLE ROW LEVEL SECURITY;
 
 -- Users table policies
 CREATE POLICY "Users can view their own profile"
@@ -228,6 +263,38 @@ CREATE POLICY "Admins can update all expenses"
 CREATE POLICY "Users can delete their own expenses"
     ON public.expenses FOR DELETE
     USING (auth.uid()::uuid = user_id AND status = 'draft');
+
+-- Manager Email Assignments table policies
+CREATE POLICY "Managers can view their own email assignments"
+    ON public.manager_email_assignments FOR SELECT
+    USING (auth.uid()::uuid = manager_id);
+
+CREATE POLICY "Managers can create their own email assignments"
+    ON public.manager_email_assignments FOR INSERT
+    WITH CHECK (auth.uid()::uuid = manager_id);
+
+CREATE POLICY "Managers can delete their own unassigned email assignments"
+    ON public.manager_email_assignments FOR DELETE
+    USING (
+        auth.uid()::uuid = manager_id AND
+        assigned_at IS NULL
+    );
+
+CREATE POLICY "Admins can view all email assignments"
+    ON public.manager_email_assignments FOR SELECT
+    USING (public.get_user_role(auth.uid()::uuid) = 'admin');
+
+CREATE POLICY "Admins can create email assignments for any manager"
+    ON public.manager_email_assignments FOR INSERT
+    WITH CHECK (public.get_user_role(auth.uid()::uuid) = 'admin');
+
+CREATE POLICY "Admins can delete any email assignment"
+    ON public.manager_email_assignments FOR DELETE
+    USING (public.get_user_role(auth.uid()::uuid) = 'admin');
+
+CREATE POLICY "Admins can update any email assignment"
+    ON public.manager_email_assignments FOR UPDATE
+    USING (public.get_user_role(auth.uid()::uuid) = 'admin');
 
 -- Storage bucket for receipts
 INSERT INTO storage.buckets (id, name, public)

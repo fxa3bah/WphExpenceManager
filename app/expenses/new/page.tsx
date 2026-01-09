@@ -8,12 +8,19 @@ import type { OCRResult } from '@/lib/utils/ocr'
 import { format } from 'date-fns'
 
 const EXPENSE_CATEGORIES = [
-  'Meals',
-  'Transportation',
-  'Lodging',
-  'Office Supplies',
-  'Travel',
+  'Breakfast',
+  'Lunch',
+  'Dinner',
   'Entertainment',
+  'Hotel',
+  'Airline/Train Ticket',
+  'Tips (other than meals)',
+  'Communications',
+  'Transportation',
+  'Rental Car',
+  'Parking and Tolls',
+  'Personal Car - Mileage',
+  'Other Travel Expenses',
   'Other',
 ]
 
@@ -37,6 +44,7 @@ export default function NewExpensePage() {
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState('USD')
   const [category, setCategory] = useState('')
+  const [entertainmentPeopleCount, setEntertainmentPeopleCount] = useState('')
   const [merchantName, setMerchantName] = useState('')
   const [description, setDescription] = useState('')
   const [expenseDate, setExpenseDate] = useState(format(new Date(), 'yyyy-MM-dd'))
@@ -140,6 +148,7 @@ export default function NewExpensePage() {
         amount: parseFloat(amount),
         currency,
         category,
+        entertainment_people_count: category === 'Entertainment' && entertainmentPeopleCount ? parseInt(entertainmentPeopleCount) : null,
         merchant_name: merchantName || null,
         description: description || null,
         expense_date: expenseDate,
@@ -254,6 +263,28 @@ export default function NewExpensePage() {
                 ))}
               </select>
             </div>
+
+            {/* Entertainment People Count - Only show for Entertainment category */}
+            {category === 'Entertainment' && (
+              <div>
+                <label htmlFor="entertainmentPeopleCount" className="block text-sm font-medium mb-2">
+                  Number of People Entertained *
+                </label>
+                <input
+                  id="entertainmentPeopleCount"
+                  type="number"
+                  min="1"
+                  value={entertainmentPeopleCount}
+                  onChange={(e) => setEntertainmentPeopleCount(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700"
+                  placeholder="e.g., 4"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Enter the number of people who were entertained
+                </p>
+              </div>
+            )}
 
             {/* Merchant Name */}
             <div>
