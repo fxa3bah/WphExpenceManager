@@ -108,6 +108,7 @@ export default async function AdminPage() {
           </div>
         </div>
 
+        {/* Manager Email Assignments - Only show for managers and admins */}
         <div className="mb-6">
           <ManagedEmailsPanel
             currentUserId={user.id}
