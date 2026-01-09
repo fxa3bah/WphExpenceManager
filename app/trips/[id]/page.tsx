@@ -4,6 +4,10 @@ import BottomNav from '@/components/BottomNav'
 import Link from 'next/link'
 import TripTEForm from '@/components/TripTEForm'
 
+// Disable caching for this page to ensure real-time data
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function TripDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
   const { id } = await params

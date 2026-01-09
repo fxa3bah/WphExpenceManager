@@ -5,6 +5,10 @@ import FAB from '@/components/FAB'
 import ExpenseList from '@/components/ExpenseList'
 import Link from 'next/link'
 
+// Disable caching for this page to ensure real-time data
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function ExpensesPage() {
   const supabase = await createClient()
 
