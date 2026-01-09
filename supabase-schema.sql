@@ -104,6 +104,12 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 
+-- Helper function to get user role (SECURITY DEFINER bypasses RLS to prevent recursion)
+CREATE OR REPLACE FUNCTION public.get_user_role(user_id uuid)
+RETURNS TEXT AS $$
+  SELECT role FROM public.users WHERE id = user_id;
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
 -- Users table policies
 CREATE POLICY "Users can view their own profile"
     ON public.users FOR SELECT
@@ -115,27 +121,19 @@ CREATE POLICY "Managers can view their reports"
         manager_id = auth.uid()::uuid
     );
 
+-- FIXED: Use security definer function to prevent infinite recursion
 CREATE POLICY "Admins can view all users"
     ON public.users FOR SELECT
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.users
-            WHERE id = auth.uid()::uuid AND role = 'admin'
-        )
-    );
+    USING (public.get_user_role(auth.uid()::uuid) = 'admin');
 
 CREATE POLICY "Users can update their own profile"
     ON public.users FOR UPDATE
     USING (auth.uid()::uuid = id);
 
+-- FIXED: Use security definer function to prevent infinite recursion
 CREATE POLICY "Admins can update all users"
     ON public.users FOR UPDATE
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.users
-            WHERE id = auth.uid()::uuid AND role = 'admin'
-        )
-    );
+    USING (public.get_user_role(auth.uid()::uuid) = 'admin');
 
 -- Note: User profile creation is handled automatically by the on_auth_user_created trigger
 -- No manual INSERT policy needed for users table
@@ -170,14 +168,10 @@ CREATE POLICY "Managers can view their reports' expenses"
         )
     );
 
+-- FIXED: Use security definer function to prevent infinite recursion
 CREATE POLICY "Admins can view all expenses"
     ON public.expenses FOR SELECT
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.users
-            WHERE id = auth.uid()::uuid AND role = 'admin'
-        )
-    );
+    USING (public.get_user_role(auth.uid()::uuid) = 'admin');
 
 CREATE POLICY "Users can create their own expenses"
     ON public.expenses FOR INSERT
@@ -195,14 +189,10 @@ CREATE POLICY "Managers can approve their reports' expenses"
         )
     );
 
+-- FIXED: Use security definer function to prevent infinite recursion
 CREATE POLICY "Admins can update all expenses"
     ON public.expenses FOR UPDATE
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.users
-            WHERE id = auth.uid()::uuid AND role = 'admin'
-        )
-    );
+    USING (public.get_user_role(auth.uid()::uuid) = 'admin');
 
 CREATE POLICY "Users can delete their own expenses"
     ON public.expenses FOR DELETE
@@ -237,14 +227,12 @@ CREATE POLICY "Managers can view their reports' receipts"
         )
     );
 
+-- FIXED: Use security definer function to prevent infinite recursion
 CREATE POLICY "Admins can view all receipts"
     ON storage.objects FOR SELECT
     USING (
         bucket_id = 'receipts' AND
-        EXISTS (
-            SELECT 1 FROM public.users
-            WHERE id = auth.uid()::uuid AND role = 'admin'
-        )
+        public.get_user_role(auth.uid()::uuid) = 'admin'
     );
 
 CREATE POLICY "Users can delete their own receipts"
