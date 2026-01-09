@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import BottomNav from '@/components/BottomNav'
 import FAB from '@/components/FAB'
-import ExpenseMaintenancePanel from '@/components/ExpenseMaintenancePanel'
+import ExpenseList from '@/components/ExpenseList'
 import Link from 'next/link'
 
 export default async function ExpensesPage() {
@@ -52,12 +52,7 @@ export default async function ExpensesPage() {
         </div>
 
         {expenses && expenses.length > 0 ? (
-          <>
-            <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-              <span className="font-semibold">Tip:</span> Click on trip headers to expand/collapse expenses
-            </div>
-            <ExpenseMaintenancePanel initialExpenses={expenses} trips={trips || []} />
-          </>
+          <ExpenseList initialExpenses={expenses} trips={trips || []} />
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
             <div className="text-gray-400 mb-4">
