@@ -251,7 +251,7 @@ CREATE POLICY "Admins can update all expenses"
 
 CREATE POLICY "Users can delete their own expenses"
     ON public.expenses FOR DELETE
-    USING (auth.uid()::uuid = user_id AND status = 'draft');
+    USING (auth.uid()::uuid = user_id);
 
 -- Storage bucket for receipts
 INSERT INTO storage.buckets (id, name, public)
