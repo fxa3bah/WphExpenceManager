@@ -5,6 +5,10 @@ import LogoutButton from '@/components/LogoutButton'
 import ManagerSelector from '@/components/ManagerSelector'
 import Link from 'next/link'
 
+// Disable caching for this page to ensure real-time data
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function ProfilePage() {
   const supabase = await createClient()
 

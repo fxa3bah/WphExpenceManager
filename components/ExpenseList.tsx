@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { deleteExpense, bulkDeleteExpenses, bulkUpdateExpenses } from '@/app/expenses/actions'
 import Link from 'next/link'
 
 type Expense = {
@@ -117,10 +118,10 @@ export default function ExpenseList({ initialExpenses, trips }: ExpenseListProps
     if (!confirm('Delete this expense?')) return
 
     setLoading(true)
-    const { error } = await supabase.from('expenses').delete().eq('id', id)
+    const result = await deleteExpense(id)
 
-    if (error) {
-      setMessage({ type: 'error', text: error.message })
+    if (result.error) {
+      setMessage({ type: 'error', text: result.error })
     } else {
       setExpenses(prev => prev.filter(e => e.id !== id))
       setSelectedIds(prev => {
@@ -151,10 +152,10 @@ export default function ExpenseList({ initialExpenses, trips }: ExpenseListProps
     }
 
     setLoading(true)
-    const { error } = await supabase.from('expenses').update(updates).in('id', selectedExpenses)
+    const result = await bulkUpdateExpenses(selectedExpenses, updates)
 
-    if (error) {
-      setMessage({ type: 'error', text: error.message })
+    if (result.error) {
+      setMessage({ type: 'error', text: result.error })
     } else {
       setExpenses(prev => prev.map(e =>
         selectedIds.has(e.id) ? { ...e, ...updates } : e
@@ -176,10 +177,10 @@ export default function ExpenseList({ initialExpenses, trips }: ExpenseListProps
     if (!confirm(`Delete ${selectedExpenses.length} expense(s)?`)) return
 
     setLoading(true)
-    const { error } = await supabase.from('expenses').delete().in('id', selectedExpenses)
+    const result = await bulkDeleteExpenses(selectedExpenses)
 
-    if (error) {
-      setMessage({ type: 'error', text: error.message })
+    if (result.error) {
+      setMessage({ type: 'error', text: result.error })
     } else {
       setExpenses(prev => prev.filter(e => !selectedIds.has(e.id)))
       setSelectedIds(new Set())
