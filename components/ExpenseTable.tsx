@@ -40,9 +40,22 @@ type Trip = {
 type Props = {
   expenses: Expense[]
   trips: Trip[]
+  selectionMode?: boolean
+  selectedIds?: Set<string>
+  onToggleSelect?: (expenseId: string) => void
+  onToggleSelectAll?: (expenseIds: string[]) => void
+  onDelete?: (expenseId: string) => void
 }
 
-export default function ExpenseTable({ expenses, trips }: Props) {
+export default function ExpenseTable({
+  expenses,
+  trips,
+  selectionMode = false,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
+  onDelete,
+}: Props) {
   const [expandedTrips, setExpandedTrips] = useState<Set<string>>(new Set())
 
   const toggleTrip = (tripId: string) => {
@@ -102,6 +115,16 @@ export default function ExpenseTable({ expenses, trips }: Props) {
 
   const renderExpenseRow = (expense: Expense) => (
     <tr key={expense.id} className={`transition ${getRowColor(expense.status)}`}>
+      {selectionMode && (
+        <td className="px-4 py-3 whitespace-nowrap text-sm">
+          <input
+            type="checkbox"
+            checked={selectedIds?.has(expense.id) || false}
+            onChange={() => onToggleSelect?.(expense.id)}
+            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+          />
+        </td>
+      )}
       <td className="px-4 py-3 whitespace-nowrap text-sm">
         {new Date(expense.expense_date).toLocaleDateString()}
       </td>
@@ -150,12 +173,31 @@ export default function ExpenseTable({ expenses, trips }: Props) {
         )}
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
-        <Link
-          href={`/expenses/${expense.id}`}
-          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
-        >
-          View
-        </Link>
+        <div className="flex items-center justify-center gap-3">
+          <Link
+            href={`/expenses/${expense.id}`}
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
+          >
+            View
+          </Link>
+          <Link
+            href={`/expenses/${expense.id}/edit`}
+            className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium"
+          >
+            Edit
+          </Link>
+          {onDelete && expense.status === 'draft' ? (
+            <button
+              type="button"
+              onClick={() => onDelete(expense.id)}
+              className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-medium"
+            >
+              Delete
+            </button>
+          ) : (
+            <span className="text-gray-400 dark:text-gray-500 font-medium">—</span>
+          )}
+        </div>
       </td>
     </tr>
   )
@@ -167,6 +209,16 @@ export default function ExpenseTable({ expenses, trips }: Props) {
         <table className="w-full">
           <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
             <tr>
+              {selectionMode && (
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  <input
+                    type="checkbox"
+                    checked={expenses.length > 0 && selectedIds?.size === expenses.length}
+                    onChange={() => onToggleSelectAll?.(expenses.map((expense) => expense.id))}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                  />
+                </th>
+              )}
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                 Date
               </th>
@@ -204,7 +256,7 @@ export default function ExpenseTable({ expenses, trips }: Props) {
                     className="bg-blue-50 dark:bg-blue-900/20 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
                     onClick={() => trip && toggleTrip(tripId)}
                   >
-                    <td colSpan={7} className="px-4 py-3">
+                    <td colSpan={selectionMode ? 8 : 7} className="px-4 py-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           {trip && (
@@ -303,19 +355,25 @@ export default function ExpenseTable({ expenses, trips }: Props) {
               {/* Expense Cards */}
               {(!trip || isExpanded) && (
                 <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {tripExpenses.map((expense) => (
-                    <Link
-                      key={expense.id}
-                      href={`/expenses/${expense.id}`}
-                      className={`block p-4 transition ${getRowColor(expense.status)}`}
-                    >
+                  {tripExpenses.map((expense) => {
+                    const content = (
                       <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <div className="font-semibold text-base">
-                            {expense.merchant_name || expense.category}
-                          </div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            {new Date(expense.expense_date).toLocaleDateString()}
+                        <div className="flex items-start gap-3">
+                          {selectionMode && (
+                            <input
+                              type="checkbox"
+                              checked={selectedIds?.has(expense.id) || false}
+                              onChange={() => onToggleSelect?.(expense.id)}
+                              className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                            />
+                          )}
+                          <div className="flex-1">
+                            <div className="font-semibold text-base">
+                              {expense.merchant_name || expense.category}
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              {new Date(expense.expense_date).toLocaleDateString()}
+                            </div>
                           </div>
                         </div>
                         <div className="text-right">
@@ -327,22 +385,79 @@ export default function ExpenseTable({ expenses, trips }: Props) {
                           </span>
                         </div>
                       </div>
+                    )
 
-                      {(expense.approver?.full_name || expense.employee?.manager?.full_name) && (
-                        <div className="text-sm mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-                          <span className="text-gray-600 dark:text-gray-400">Approver: </span>
-                          <span className="font-medium">
-                            {expense.approver?.full_name || expense.employee?.manager?.full_name}
+                    const approver = (expense.approver?.full_name || expense.employee?.manager?.full_name) ? (
+                      <div className="text-sm mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                        <span className="text-gray-600 dark:text-gray-400">Approver: </span>
+                        <span className="font-medium">
+                          {expense.approver?.full_name || expense.employee?.manager?.full_name}
+                        </span>
+                        {expense.approved_at && (
+                          <span className="text-gray-500 dark:text-gray-500 ml-2">
+                            • {new Date(expense.approved_at).toLocaleDateString()}
                           </span>
-                          {expense.approved_at && (
-                            <span className="text-gray-500 dark:text-gray-500 ml-2">
-                              • {new Date(expense.approved_at).toLocaleDateString()}
-                            </span>
-                          )}
+                        )}
+                      </div>
+                    ) : null
+
+                    const actions = (
+                      <div className="mt-3 flex flex-wrap gap-3 text-sm font-medium">
+                        <Link
+                          href={`/expenses/${expense.id}`}
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                        >
+                          View
+                        </Link>
+                        <Link
+                          href={`/expenses/${expense.id}/edit`}
+                          className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300"
+                        >
+                          Edit
+                        </Link>
+                        {onDelete && expense.status === 'draft' ? (
+                          <button
+                            type="button"
+                            onClick={() => onDelete(expense.id)}
+                            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                          >
+                            Delete
+                          </button>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500">Draft only</span>
+                        )}
+                      </div>
+                    )
+
+                    const body = (
+                      <>
+                        {content}
+                        {approver}
+                        {actions}
+                      </>
+                    )
+
+                    if (selectionMode) {
+                      return (
+                        <div
+                          key={expense.id}
+                          className={`block p-4 transition ${getRowColor(expense.status)}`}
+                        >
+                          {body}
                         </div>
-                      )}
-                    </Link>
-                  ))}
+                      )
+                    }
+
+                    return (
+                      <Link
+                        key={expense.id}
+                        href={`/expenses/${expense.id}`}
+                        className={`block p-4 transition ${getRowColor(expense.status)}`}
+                      >
+                        {body}
+                      </Link>
+                    )
+                  })}
                 </div>
               )}
             </div>
