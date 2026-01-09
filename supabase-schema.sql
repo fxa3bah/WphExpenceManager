@@ -97,6 +97,43 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- Helper function to get user role (bypasses RLS to prevent infinite recursion)
+CREATE OR REPLACE FUNCTION public.get_user_role(user_id UUID)
+RETURNS TEXT AS $$
+DECLARE
+    user_role TEXT;
+BEGIN
+    SELECT role INTO user_role
+    FROM public.users
+    WHERE id = user_id;
+    RETURN user_role;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Helper function to check if user is manager of another user
+CREATE OR REPLACE FUNCTION public.is_manager_of(manager_id UUID, employee_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+    emp_manager_id UUID;
+BEGIN
+    SELECT manager_id INTO emp_manager_id
+    FROM public.users
+    WHERE id = employee_id;
+    RETURN emp_manager_id = manager_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Helper function to get all report IDs for a manager
+CREATE OR REPLACE FUNCTION public.get_report_ids(manager_id UUID)
+RETURNS TABLE(id UUID) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT users.id
+    FROM public.users
+    WHERE users.manager_id = manager_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- Row Level Security (RLS) Policies
 
 -- Enable RLS on all tables
@@ -118,10 +155,7 @@ CREATE POLICY "Managers can view their reports"
 CREATE POLICY "Admins can view all users"
     ON public.users FOR SELECT
     USING (
-        EXISTS (
-            SELECT 1 FROM public.users
-            WHERE id = auth.uid()::uuid AND role = 'admin'
-        )
+        public.get_user_role(auth.uid()::uuid) = 'admin'
     );
 
 CREATE POLICY "Users can update their own profile"
@@ -131,10 +165,7 @@ CREATE POLICY "Users can update their own profile"
 CREATE POLICY "Admins can update all users"
     ON public.users FOR UPDATE
     USING (
-        EXISTS (
-            SELECT 1 FROM public.users
-            WHERE id = auth.uid()::uuid AND role = 'admin'
-        )
+        public.get_user_role(auth.uid()::uuid) = 'admin'
     );
 
 -- Note: User profile creation is handled automatically by the on_auth_user_created trigger
@@ -165,18 +196,13 @@ CREATE POLICY "Users can view their own expenses"
 CREATE POLICY "Managers can view their reports' expenses"
     ON public.expenses FOR SELECT
     USING (
-        user_id IN (
-            SELECT id FROM public.users WHERE manager_id = auth.uid()::uuid
-        )
+        user_id IN (SELECT id FROM public.get_report_ids(auth.uid()::uuid))
     );
 
 CREATE POLICY "Admins can view all expenses"
     ON public.expenses FOR SELECT
     USING (
-        EXISTS (
-            SELECT 1 FROM public.users
-            WHERE id = auth.uid()::uuid AND role = 'admin'
-        )
+        public.get_user_role(auth.uid()::uuid) = 'admin'
     );
 
 CREATE POLICY "Users can create their own expenses"
@@ -190,18 +216,13 @@ CREATE POLICY "Users can update their own expenses"
 CREATE POLICY "Managers can approve their reports' expenses"
     ON public.expenses FOR UPDATE
     USING (
-        user_id IN (
-            SELECT id FROM public.users WHERE manager_id = auth.uid()::uuid
-        )
+        user_id IN (SELECT id FROM public.get_report_ids(auth.uid()::uuid))
     );
 
 CREATE POLICY "Admins can update all expenses"
     ON public.expenses FOR UPDATE
     USING (
-        EXISTS (
-            SELECT 1 FROM public.users
-            WHERE id = auth.uid()::uuid AND role = 'admin'
-        )
+        public.get_user_role(auth.uid()::uuid) = 'admin'
     );
 
 CREATE POLICY "Users can delete their own expenses"
@@ -233,7 +254,7 @@ CREATE POLICY "Managers can view their reports' receipts"
     USING (
         bucket_id = 'receipts' AND
         (storage.foldername(name))[1] IN (
-            SELECT id::text FROM public.users WHERE manager_id = auth.uid()::uuid
+            SELECT id::text FROM public.get_report_ids(auth.uid()::uuid)
         )
     );
 
@@ -241,10 +262,7 @@ CREATE POLICY "Admins can view all receipts"
     ON storage.objects FOR SELECT
     USING (
         bucket_id = 'receipts' AND
-        EXISTS (
-            SELECT 1 FROM public.users
-            WHERE id = auth.uid()::uuid AND role = 'admin'
-        )
+        public.get_user_role(auth.uid()::uuid) = 'admin'
     );
 
 CREATE POLICY "Users can delete their own receipts"

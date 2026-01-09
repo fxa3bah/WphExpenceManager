@@ -45,7 +45,7 @@
    - Client-side image compression (<500KB)
    - OCR text extraction (amount, date, merchant)
    - Auto-populated form fields
-   - Multi-currency support (USD, BHD, EUR, PKR, INR, CAD, GBP)
+   - Multi-currency support (USD, BHD, AED, EUR, PKR, INR, CAD, GBP)
    - Location detection (EXIF + browser geolocation)
    - Draft and submit functionality
 

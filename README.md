@@ -9,7 +9,7 @@ A fast, mobile-first expense tracking application for Westpoint Home built with 
 - **Automatic OCR** using Tesseract.js to extract amount, date, and merchant
 - **Client-side image compression** (<500KB target)
 - **Auto-location detection** from EXIF data or browser geolocation
-- **Multi-currency support** (USD, BHD, EUR, PKR, INR, CAD, GBP)
+- **Multi-currency support** (USD, BHD, AED, EUR, PKR, INR, CAD, GBP)
 - **Trip management** to group related expenses
 - **Manager approval workflow** with one-click approve/reject
 - **Email notifications** on approval/rejection using Resend
@@ -281,6 +281,7 @@ from: 'WPH Expense Manager <noreply@your-verified-domain.com>',
 The app supports the following currencies:
 - USD (US Dollar) - $
 - BHD (Bahraini Dinar) - BD
+- AED (UAE Dirham) - د.إ
 - EUR (Euro) - €
 - PKR (Pakistani Rupee) - ₨
 - INR (Indian Rupee) - ₹

@@ -1,37 +1,25 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { useState, useTransition } from 'react'
+import { login } from './actions'
+import Link from 'next/link'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
-  const supabase = createClient()
+  const [isPending, startTransition] = useTransition()
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setLoading(true)
     setError(null)
 
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+    const formData = new FormData(e.currentTarget)
 
-      if (error) throw error
-
-      router.push('/dashboard')
-      router.refresh()
-    } catch (err: any) {
-      setError(err.message || 'Failed to login')
-    } finally {
-      setLoading(false)
-    }
+    startTransition(async () => {
+      const result = await login(formData)
+      if (result?.error) {
+        setError(result.error)
+      }
+    })
   }
 
   return (
@@ -48,17 +36,17 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium mb-2">
                 Email
               </label>
               <input
                 id="email"
+                name="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="email"
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700"
                 placeholder="you@example.com"
               />
@@ -70,10 +58,10 @@ export default function LoginPage() {
               </label>
               <input
                 id="password"
+                name="password"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700"
                 placeholder="••••••••"
               />
@@ -81,10 +69,10 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isPending}
               className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium"
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {isPending ? 'Logging in...' : 'Login'}
             </button>
           </form>
 
@@ -92,12 +80,12 @@ export default function LoginPage() {
             <span className="text-gray-600 dark:text-gray-400">
               Don't have an account?{' '}
             </span>
-            <a
+            <Link
               href="/auth/signup"
               className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
             >
               Sign up
-            </a>
+            </Link>
           </div>
         </div>
       </div>
