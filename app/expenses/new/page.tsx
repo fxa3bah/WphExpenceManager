@@ -47,6 +47,7 @@ export default function NewExpensePage() {
   const [category, setCategory] = useState('')
   const [merchantName, setMerchantName] = useState('')
   const [description, setDescription] = useState('')
+  const [entertainmentHeadcount, setEntertainmentHeadcount] = useState('')
   const [expenseDate, setExpenseDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [location, setLocation] = useState('')
   const [gpsCoordinates, setGpsCoordinates] = useState<any>(null)
@@ -69,6 +70,12 @@ export default function NewExpensePage() {
     }
     loadUser()
   }, [])
+
+  useEffect(() => {
+    if (category !== 'Entertainment') {
+      setEntertainmentHeadcount('')
+    }
+  }, [category])
 
   async function loadTrips(userId: string) {
     const { data } = await supabase
@@ -150,6 +157,10 @@ export default function NewExpensePage() {
         category,
         merchant_name: merchantName || null,
         description: description || null,
+        entertainment_headcount:
+          category === 'Entertainment' && entertainmentHeadcount
+            ? parseInt(entertainmentHeadcount, 10)
+            : null,
         expense_date: expenseDate,
         receipt_url: receiptUrl,
         location: location || null,
@@ -277,6 +288,24 @@ export default function NewExpensePage() {
                 placeholder="e.g., Starbucks"
               />
             </div>
+
+            {category === 'Entertainment' && (
+              <div>
+                <label htmlFor="entertainmentHeadcount" className="block text-sm font-medium mb-2">
+                  Number of People Entertained *
+                </label>
+                <input
+                  id="entertainmentHeadcount"
+                  type="number"
+                  min="1"
+                  value={entertainmentHeadcount}
+                  onChange={(e) => setEntertainmentHeadcount(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700"
+                  placeholder="e.g., 3"
+                />
+              </div>
+            )}
 
             {/* Date */}
             <div>
