@@ -7,13 +7,21 @@ import ReceiptUpload from '@/components/ReceiptUpload'
 import type { OCRResult } from '@/lib/utils/ocr'
 import { format } from 'date-fns'
 
+// Categories matching T&E Form format
 const EXPENSE_CATEGORIES = [
-  'Meals',
-  'Transportation',
-  'Lodging',
-  'Office Supplies',
-  'Travel',
+  'Breakfast',
+  'Lunch',
+  'Dinner',
   'Entertainment',
+  'Hotel',
+  'Airline/Train Ticket',
+  'Tips (other than meals)',
+  'Communications',
+  'Transportation',
+  'Rental Car',
+  'Parking and Tolls',
+  'Personal Car - Mileage',
+  'Other Travel Expenses',
   'Other',
 ]
 
