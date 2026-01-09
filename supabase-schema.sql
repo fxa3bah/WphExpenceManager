@@ -150,6 +150,10 @@ CREATE POLICY "Managers can view their reports"
         manager_id = auth.uid()::uuid
     );
 
+CREATE POLICY "Users can view all users for manager selection"
+    ON public.users FOR SELECT
+    USING (auth.uid() IS NOT NULL);
+
 -- FIXED: Use security definer function to prevent infinite recursion
 CREATE POLICY "Admins can view all users"
     ON public.users FOR SELECT
