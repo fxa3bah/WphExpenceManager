@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 type Expense = {
   id: string
@@ -42,6 +44,7 @@ type Props = {
 
 export default function TripTEForm({ trip, expenses, profile }: Props) {
   const [exporting, setExporting] = useState(false)
+  const [exportingPDF, setExportingPDF] = useState(false)
 
   // Get date range for the trip
   const startDate = new Date(trip.start_date)
@@ -137,7 +140,7 @@ export default function TripTEForm({ trip, expenses, profile }: Props) {
       data.push(['MEALS/ENTERTAINMENT SECTION'])
 
       mealCategories.forEach(category => {
-        const row = [category]
+        const row: any[] = [category]
         tripDates.forEach(date => {
           const dateKey = date.toLocaleDateString()
           const total = getCategoryTotal(category, dateKey)
@@ -148,7 +151,7 @@ export default function TripTEForm({ trip, expenses, profile }: Props) {
       })
 
       // Meal subtotal
-      const mealSubtotalRow = ['Subtotal (Meals & Entertainment)']
+      const mealSubtotalRow: any[] = ['Subtotal (Meals & Entertainment)']
       tripDates.forEach(date => {
         const total = getMealSubtotal(date.toLocaleDateString())
         mealSubtotalRow.push(total > 0 ? total : '')
@@ -161,7 +164,7 @@ export default function TripTEForm({ trip, expenses, profile }: Props) {
       data.push(['TRAVEL SECTION'])
 
       travelCategories.forEach(category => {
-        const row = [category]
+        const row: any[] = [category]
         tripDates.forEach(date => {
           const dateKey = date.toLocaleDateString()
           const total = getCategoryTotal(category, dateKey)
@@ -172,7 +175,7 @@ export default function TripTEForm({ trip, expenses, profile }: Props) {
       })
 
       // Travel subtotal
-      const travelSubtotalRow = ['Subtotal (Travel)']
+      const travelSubtotalRow: any[] = ['Subtotal (Travel)']
       tripDates.forEach(date => {
         const total = getTravelSubtotal(date.toLocaleDateString())
         travelSubtotalRow.push(total > 0 ? total : '')
@@ -182,7 +185,7 @@ export default function TripTEForm({ trip, expenses, profile }: Props) {
       data.push([])
 
       // Daily totals
-      const dailyTotalRow = ['Daily Totals:']
+      const dailyTotalRow: any[] = ['Daily Totals:']
       tripDates.forEach(date => {
         const total = getDateTotal(date.toLocaleDateString())
         dailyTotalRow.push(total > 0 ? total : '')
@@ -215,21 +218,243 @@ export default function TripTEForm({ trip, expenses, profile }: Props) {
     }
   }
 
+  // Export to PDF with WestPoint Home branding
+  const handleExportPDF = () => {
+    setExportingPDF(true)
+
+    try {
+      const doc = new jsPDF('landscape', 'mm', 'a4')
+
+      // WestPoint Home Branding - Header
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      // Brand colors
+      const primaryBlue = [0, 71, 171] // WestPoint Home Blue
+      const accentGold = [218, 165, 32] // Gold accent
+
+      // Header Background
+      doc.setFillColor(primaryBlue[0], primaryBlue[1], primaryBlue[2])
+      doc.rect(0, 0, pageWidth, 35, 'F')
+
+      // Company Name
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(24)
+      doc.setFont('helvetica', 'bold')
+      doc.text('WESTPOINT HOME LLC', pageWidth / 2, 15, { align: 'center' })
+
+      // Subtitle
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Travel & Entertainment Expense Report', pageWidth / 2, 25, { align: 'center' })
+
+      // Gold accent line
+      doc.setDrawColor(accentGold[0], accentGold[1], accentGold[2])
+      doc.setLineWidth(2)
+      doc.line(15, 32, pageWidth - 15, 32)
+
+      // Employee Information Box
+      doc.setTextColor(0, 0, 0)
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+
+      let yPos = 42
+
+      // Info box with light background
+      doc.setFillColor(240, 248, 255) // Light blue
+      doc.roundedRect(15, yPos, pageWidth - 30, 25, 2, 2, 'F')
+
+      yPos += 5
+      doc.text(`Employee Name: ${profile.full_name}`, 20, yPos)
+      doc.text(`Email: ${profile.email}`, pageWidth / 2 + 10, yPos)
+
+      yPos += 6
+      doc.text(`Trip Purpose: ${trip.trip_name}`, 20, yPos)
+
+      yPos += 6
+      doc.text(`Destination: ${trip.destination || 'N/A'}`, 20, yPos)
+      doc.text(`Week Ending: ${endDate.toLocaleDateString()}`, pageWidth / 2 + 10, yPos)
+
+      yPos += 10
+
+      // Build table data
+      const tableHeaders = [
+        ['Category', ...tripDates.map(d =>
+          `${d.toLocaleDateString('en-US', { weekday: 'short' })}\n${d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}`
+        ), 'Total']
+      ]
+
+      const tableData: any[] = []
+
+      // MEALS/ENTERTAINMENT SECTION
+      tableData.push([{
+        content: 'MEALS/ENTERTAINMENT SECTION',
+        colSpan: tripDates.length + 2,
+        styles: { fillColor: [100, 149, 237], textColor: 255, fontStyle: 'bold', halign: 'left' }
+      }])
+
+      mealCategories.forEach(category => {
+        const categoryTotal = getCategoryTotal(category)
+        if (categoryTotal > 0) {
+          const row = [category]
+          tripDates.forEach(date => {
+            const dateKey = date.toLocaleDateString()
+            const amount = getCategoryTotal(category, dateKey)
+            row.push(amount > 0 ? `$${amount.toFixed(2)}` : '-')
+          })
+          row.push(`$${categoryTotal.toFixed(2)}`)
+          tableData.push(row)
+        }
+      })
+
+      // Meals subtotal
+      const mealSubtotal = getMealSubtotal()
+      const mealSubtotalRow = ['Subtotal (Acct. 530-003)']
+      tripDates.forEach(date => {
+        const total = getMealSubtotal(date.toLocaleDateString())
+        mealSubtotalRow.push(total > 0 ? `$${total.toFixed(2)}` : '-')
+      })
+      mealSubtotalRow.push(`$${mealSubtotal.toFixed(2)}`)
+      tableData.push([{
+        content: mealSubtotalRow,
+        styles: { fillColor: [230, 230, 250], fontStyle: 'bold' }
+      }])
+
+      // TRAVEL SECTION
+      tableData.push([{
+        content: 'TRAVEL SECTION',
+        colSpan: tripDates.length + 2,
+        styles: { fillColor: [60, 179, 113], textColor: 255, fontStyle: 'bold', halign: 'left' }
+      }])
+
+      travelCategories.forEach(category => {
+        const categoryTotal = getCategoryTotal(category)
+        if (categoryTotal > 0) {
+          const row = [category]
+          tripDates.forEach(date => {
+            const dateKey = date.toLocaleDateString()
+            const amount = getCategoryTotal(category, dateKey)
+            row.push(amount > 0 ? `$${amount.toFixed(2)}` : '-')
+          })
+          row.push(`$${categoryTotal.toFixed(2)}`)
+          tableData.push(row)
+        }
+      })
+
+      // Travel subtotal
+      const travelSubtotal = getTravelSubtotal()
+      const travelSubtotalRow = ['Subtotal (Acct. 530-002)']
+      tripDates.forEach(date => {
+        const total = getTravelSubtotal(date.toLocaleDateString())
+        travelSubtotalRow.push(total > 0 ? `$${total.toFixed(2)}` : '-')
+      })
+      travelSubtotalRow.push(`$${travelSubtotal.toFixed(2)}`)
+      tableData.push([{
+        content: travelSubtotalRow,
+        styles: { fillColor: [230, 250, 230], fontStyle: 'bold' }
+      }])
+
+      // Daily totals
+      const dailyTotalRowData = ['DAILY TOTALS']
+      tripDates.forEach(date => {
+        const total = getDateTotal(date.toLocaleDateString())
+        dailyTotalRowData.push(total > 0 ? `$${total.toFixed(2)}` : '-')
+      })
+      dailyTotalRowData.push(`$${grandTotal.toFixed(2)}`)
+      tableData.push([{
+        content: dailyTotalRowData,
+        styles: { fillColor: [255, 250, 205], fontStyle: 'bold', fontSize: 11 }
+      }])
+
+      // Generate table
+      autoTable(doc, {
+        startY: yPos,
+        head: tableHeaders,
+        body: tableData,
+        theme: 'grid',
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1,
+        },
+        headStyles: {
+          fillColor: [52, 73, 94],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center',
+          fontSize: 8,
+        },
+        columnStyles: {
+          0: { cellWidth: 40, fontStyle: 'normal' },
+          [tripDates.length + 1]: { fillColor: [255, 250, 240], fontStyle: 'bold', halign: 'right' }
+        },
+        didParseCell: (data) => {
+          // Right align all number columns
+          if (data.column.index > 0) {
+            data.cell.styles.halign = 'right'
+          }
+        },
+      })
+
+      // Footer - Grand Total
+      const finalY = (doc as any).lastAutoTable.finalY || yPos + 50
+
+      if (finalY < pageHeight - 30) {
+        doc.setFillColor(primaryBlue[0], primaryBlue[1], primaryBlue[2])
+        doc.roundedRect(15, finalY + 5, pageWidth - 30, 15, 2, 2, 'F')
+
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(14)
+        doc.setFont('helvetica', 'bold')
+        doc.text('TOTAL EXPENSES DUE EMPLOYEE:', 20, finalY + 13)
+        doc.text(`$${grandTotal.toFixed(2)}`, pageWidth - 20, finalY + 13, { align: 'right' })
+      }
+
+      // Footer - Page info
+      doc.setTextColor(128, 128, 128)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      const footerText = `Generated on ${new Date().toLocaleDateString()} | Please attach receipts for expenses over $25`
+      doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' })
+
+      // Save PDF
+      doc.save(`TE_${trip.trip_name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`)
+    } catch (error) {
+      console.error('PDF Export error:', error)
+      alert('Failed to export PDF. Please try again.')
+    } finally {
+      setExportingPDF(false)
+    }
+  }
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-      {/* Export Button */}
+      {/* Export Buttons */}
       <div className="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">
         <h2 className="text-xl font-bold">T&E Expense Summary</h2>
-        <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition font-medium flex items-center gap-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          {exporting ? 'Exporting...' : 'Export to Excel'}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={handleExportPDF}
+            disabled={exportingPDF}
+            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition font-medium flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            {exportingPDF ? 'Exporting...' : 'Export to PDF'}
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition font-medium flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            {exporting ? 'Exporting...' : 'Export to Excel'}
+          </button>
+        </div>
       </div>
 
       {/* T&E Form Table */}

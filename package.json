@@ -23,6 +23,8 @@
     "browser-image-compression": "^2.0.2",
     "date-fns": "^4.1.0",
     "exifreader": "^4.34.0",
+    "jspdf": "^4.0.0",
+    "jspdf-autotable": "^5.0.7",
     "next": "^16.1.1",
     "postcss": "^8.5.6",
     "react": "^19.2.3",
