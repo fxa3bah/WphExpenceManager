@@ -52,7 +52,7 @@ export default function EditExpensePage() {
   const [category, setCategory] = useState('')
   const [merchantName, setMerchantName] = useState('')
   const [description, setDescription] = useState('')
-  const [entertainmentHeadcount, setEntertainmentHeadcount] = useState('')
+  const [entertainmentPeopleCount, setEntertainmentPeopleCount] = useState('')
   const [expenseDate, setExpenseDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [tripId, setTripId] = useState('')
 
@@ -82,7 +82,7 @@ export default function EditExpensePage() {
       setCategory(expense.category || '')
       setMerchantName(expense.merchant_name || '')
       setDescription(expense.description || '')
-      setEntertainmentHeadcount(expense.entertainment_headcount?.toString() || '')
+      setEntertainmentHeadcount(expense.entertainment_people_count?.toString() || '')
       setExpenseDate(expense.expense_date || format(new Date(), 'yyyy-MM-dd'))
       setTripId(expense.trip_id || '')
       setStatus(expense.status || 'draft')
@@ -111,7 +111,7 @@ export default function EditExpensePage() {
     event.preventDefault()
     if (!expenseId) return
 
-    if (category === 'Entertainment' && !entertainmentHeadcount) {
+    if (category === 'Entertainment' && !entertainmentPeopleCount) {
       setError('Enter the number of people entertained.')
       return
     }
@@ -128,9 +128,9 @@ export default function EditExpensePage() {
         category,
         merchant_name: merchantName || null,
         description: description || null,
-        entertainment_headcount:
-          category === 'Entertainment' && entertainmentHeadcount
-            ? parseInt(entertainmentHeadcount, 10)
+        entertainment_people_count:
+          category === 'Entertainment' && entertainmentPeopleCount
+            ? parseInt(entertainmentPeopleCount, 10)
             : null,
         expense_date: expenseDate,
         trip_id: tripId || null,
@@ -270,14 +270,14 @@ export default function EditExpensePage() {
 
             {category === 'Entertainment' && (
               <div>
-                <label htmlFor="entertainmentHeadcount" className="block text-sm font-medium mb-2">
+                <label htmlFor="entertainmentPeopleCount" className="block text-sm font-medium mb-2">
                   Number of People Entertained *
                 </label>
                 <input
-                  id="entertainmentHeadcount"
+                  id="entertainmentPeopleCount"
                   type="number"
                   min="1"
-                  value={entertainmentHeadcount}
+                  value={entertainmentPeopleCount}
                   onChange={(event) => setEntertainmentHeadcount(event.target.value)}
                   required
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700"

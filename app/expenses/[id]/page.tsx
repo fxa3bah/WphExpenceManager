@@ -108,12 +108,12 @@ export default async function ExpenseDetailPage({ params }: { params: { id: stri
               </div>
             )}
 
-            {expense.category === 'Entertainment' && expense.entertainment_headcount && (
+            {expense.category === 'Entertainment' && expense.entertainment_people_count && (
               <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
                 <div className="text-sm text-gray-600 dark:text-gray-400">
                   People Entertained
                 </div>
-                <div className="font-medium">{expense.entertainment_headcount}</div>
+                <div className="font-medium">{expense.entertainment_people_count}</div>
               </div>
             )}
 

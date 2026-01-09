@@ -160,11 +160,11 @@ export default function ApprovalList({ initialExpenses, userRole, userId }: Appr
               </div>
             )}
 
-            {/* Entertainment headcount */}
-            {expense.category === 'Entertainment' && expense.entertainment_headcount && (
+            {/* Entertainment people count */}
+            {expense.category === 'Entertainment' && expense.entertainment_people_count && (
               <div className="mb-3 text-sm">
                 <span className="text-gray-500 dark:text-gray-400">People entertained: </span>
-                <span className="font-medium">{expense.entertainment_headcount}</span>
+                <span className="font-medium">{expense.entertainment_people_count}</span>
               </div>
             )}
 
