@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import BottomNav from '@/components/BottomNav'
 import ApprovalActions from '@/components/ApprovalActions'
 import Image from 'next/image'
+import Link from 'next/link'
 
 export default async function ExpenseDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
@@ -54,8 +55,16 @@ export default async function ExpenseDetailPage({ params }: { params: { id: stri
           {/* Expense Details */}
           <div className="p-6 space-y-4">
             {/* Status Badge */}
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold">Expense Details</h1>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-bold">Expense Details</h1>
+                <Link
+                  href={`/expenses/${expense.id}/edit`}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Edit Expense
+                </Link>
+              </div>
               <span className={`text-sm px-3 py-1 rounded-full font-medium ${
                 expense.status === 'approved' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
                 expense.status === 'pending' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
@@ -96,6 +105,15 @@ export default async function ExpenseDetailPage({ params }: { params: { id: stri
               <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
                 <div className="text-sm text-gray-600 dark:text-gray-400">Merchant</div>
                 <div className="font-medium">{expense.merchant_name}</div>
+              </div>
+            )}
+
+            {expense.category === 'Entertainment' && expense.entertainment_headcount && (
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  People Entertained
+                </div>
+                <div className="font-medium">{expense.entertainment_headcount}</div>
               </div>
             )}
 

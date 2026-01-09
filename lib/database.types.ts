@@ -48,6 +48,7 @@ export type Database = {
           category: string
           merchant_name: string | null
           description: string | null
+          entertainment_headcount: number | null
           expense_date: string
           receipt_url: string | null
           location: string | null
@@ -70,6 +71,7 @@ export type Database = {
           category: string
           merchant_name?: string | null
           description?: string | null
+          entertainment_headcount?: number | null
           expense_date: string
           receipt_url?: string | null
           location?: string | null
@@ -92,6 +94,7 @@ export type Database = {
           category?: string
           merchant_name?: string | null
           description?: string | null
+          entertainment_headcount?: number | null
           expense_date?: string
           receipt_url?: string | null
           location?: string | null
@@ -102,6 +105,29 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           rejection_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      manager_allowed_emails: {
+        Row: {
+          id: string
+          manager_id: string
+          email: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          manager_id: string
+          email: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          manager_id?: string
+          email?: string
           created_at?: string
           updated_at?: string
         }

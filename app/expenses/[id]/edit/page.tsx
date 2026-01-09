@@ -1,13 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import ReceiptUpload from '@/components/ReceiptUpload'
-import type { OCRResult } from '@/lib/utils/ocr'
 import { format } from 'date-fns'
 
-// Categories matching T&E Form format
 const EXPENSE_CATEGORIES = [
   'Breakfast',
   'Lunch',
@@ -36,12 +33,19 @@ const CURRENCIES = [
   { code: 'GBP', symbol: '£', name: 'British Pound' },
 ]
 
-export default function NewExpensePage() {
-  const router = useRouter()
+export default function EditExpensePage() {
+  const params = useParams<{ id: string }>()
+  const expenseId = useMemo(() => (Array.isArray(params.id) ? params.id[0] : params.id), [params])
   const supabase = createClient()
+  const router = useRouter()
 
-  const [userId, setUserId] = useState<string | null>(null)
-  const [receiptFile, setReceiptFile] = useState<File | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [trips, setTrips] = useState<any[]>([])
+  const [status, setStatus] = useState<string>('draft')
+
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState('USD')
   const [category, setCategory] = useState('')
@@ -49,27 +53,52 @@ export default function NewExpensePage() {
   const [description, setDescription] = useState('')
   const [entertainmentHeadcount, setEntertainmentHeadcount] = useState('')
   const [expenseDate, setExpenseDate] = useState(format(new Date(), 'yyyy-MM-dd'))
-  const [location, setLocation] = useState('')
-  const [gpsCoordinates, setGpsCoordinates] = useState<any>(null)
-  const [ocrData, setOcrData] = useState<any>(null)
-  const [tripId, setTripId] = useState<string>('')
-  const [trips, setTrips] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const [tripId, setTripId] = useState('')
 
   useEffect(() => {
-    async function loadUser() {
+    async function loadExpense() {
+      if (!expenseId) return
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         router.push('/auth/login')
         return
       }
-      setUserId(user.id)
-      loadTrips(user.id)
+
+      const { data: expense, error: expenseError } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('id', expenseId)
+        .single()
+
+      if (expenseError || !expense) {
+        setError(expenseError?.message || 'Unable to load expense.')
+        setLoading(false)
+        return
+      }
+
+      setAmount(expense.amount?.toString() || '')
+      setCurrency(expense.currency || 'USD')
+      setCategory(expense.category || '')
+      setMerchantName(expense.merchant_name || '')
+      setDescription(expense.description || '')
+      setEntertainmentHeadcount(expense.entertainment_headcount?.toString() || '')
+      setExpenseDate(expense.expense_date || format(new Date(), 'yyyy-MM-dd'))
+      setTripId(expense.trip_id || '')
+      setStatus(expense.status || 'draft')
+
+      const { data: tripData } = await supabase
+        .from('trips')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+
+      if (tripData) setTrips(tripData)
+      setLoading(false)
     }
-    loadUser()
-  }, [])
+
+    loadExpense()
+  }, [expenseId, router, supabase])
 
   useEffect(() => {
     if (category !== 'Entertainment') {
@@ -77,81 +106,22 @@ export default function NewExpensePage() {
     }
   }, [category])
 
-  async function loadTrips(userId: string) {
-    const { data } = await supabase
-      .from('trips')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
+  const handleSave = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!expenseId) return
 
-    if (data) setTrips(data)
-  }
+    if (category === 'Entertainment' && !entertainmentHeadcount) {
+      setError('Enter the number of people entertained.')
+      return
+    }
 
-  const handleReceiptUpload = (data: {
-    file: File
-    ocrResult: OCRResult
-    location?: string
-    gpsCoordinates?: { latitude: number; longitude: number }
-  }) => {
-    setReceiptFile(data.file)
-    setOcrData(data.ocrResult)
-
-    // Auto-populate form fields from OCR
-    if (data.ocrResult.amount) {
-      setAmount(data.ocrResult.amount.toString())
-    }
-    if (data.ocrResult.merchantName) {
-      setMerchantName(data.ocrResult.merchantName)
-    }
-    if (data.ocrResult.date) {
-      try {
-        const parsedDate = new Date(data.ocrResult.date)
-        if (!isNaN(parsedDate.getTime())) {
-          setExpenseDate(format(parsedDate, 'yyyy-MM-dd'))
-        }
-      } catch {
-        // Keep default date
-      }
-    }
-    if (data.location) {
-      setLocation(data.location)
-    }
-    if (data.gpsCoordinates) {
-      setGpsCoordinates(data.gpsCoordinates)
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent, isDraft = false) => {
-    e.preventDefault()
-    if (!userId) return
-
-    setLoading(true)
+    setSaving(true)
     setError(null)
+    setSuccess(null)
 
-    try {
-      let receiptUrl: string | null = null
-
-      // Upload receipt if exists
-      if (receiptFile) {
-        const fileName = `${userId}/${Date.now()}.jpg`
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('receipts')
-          .upload(fileName, receiptFile)
-
-        if (uploadError) throw uploadError
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('receipts')
-          .getPublicUrl(fileName)
-
-        receiptUrl = publicUrl
-      }
-
-      // Create expense
-      const expenseData = {
-        user_id: userId,
-        trip_id: tripId || null,
+    const { error: updateError } = await supabase
+      .from('expenses')
+      .update({
         amount: parseFloat(amount),
         currency,
         category,
@@ -162,46 +132,66 @@ export default function NewExpensePage() {
             ? parseInt(entertainmentHeadcount, 10)
             : null,
         expense_date: expenseDate,
-        receipt_url: receiptUrl,
-        location: location || null,
-        gps_coordinates: gpsCoordinates || null,
-        ocr_data: ocrData || null,
-        status: isDraft ? 'draft' : 'pending',
-        submitted_at: isDraft ? null : new Date().toISOString(),
-      }
+        trip_id: tripId || null,
+      })
+      .eq('id', expenseId)
 
-      const { data: insertedExpense, error: insertError } = await supabase
-        .from('expenses')
-        .insert(expenseData)
-        .select()
-        .single()
-
-      if (insertError) {
-        console.error('Insert error:', insertError)
-        throw new Error(insertError.message || 'Failed to save expense')
-      }
-
-      if (!insertedExpense) {
-        throw new Error('Expense was not created. Please check your permissions.')
-      }
-
-      // Wait a moment to ensure database write completes
-      await new Promise(resolve => setTimeout(resolve, 300))
-
-      router.push('/expenses')
+    if (updateError) {
+      setError(updateError.message)
+    } else {
+      setSuccess('Expense updated.')
       router.refresh()
-    } catch (err: any) {
-      setError(err.message || 'Failed to create expense')
-    } finally {
-      setLoading(false)
     }
+    setSaving(false)
+  }
+
+  const handleDelete = async () => {
+    if (status !== 'draft') {
+      setError('Only draft expenses can be deleted.')
+      return
+    }
+    if (!expenseId || !window.confirm('Delete this draft expense?')) return
+
+    setSaving(true)
+    setError(null)
+
+    const { error: deleteError } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', expenseId)
+
+    if (deleteError) {
+      setError(deleteError.message)
+      setSaving(false)
+      return
+    }
+
+    router.push('/expenses')
+    router.refresh()
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-gray-600 dark:text-gray-400">Loading expense...</div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-24">
       <div className="max-w-2xl mx-auto p-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <h1 className="text-2xl font-bold mb-6">New Expense</h1>
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold">Edit Expense</h1>
+            <button
+              type="button"
+              onClick={() => router.push(`/expenses/${expenseId}`)}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Back to Details
+            </button>
+          </div>
 
           {error && (
             <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm">
@@ -209,14 +199,13 @@ export default function NewExpensePage() {
             </div>
           )}
 
-          <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
-            {/* Receipt Upload */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Receipt</label>
-              <ReceiptUpload onUploadComplete={handleReceiptUpload} />
+          {success && (
+            <div className="mb-4 p-3 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg text-sm">
+              {success}
             </div>
+          )}
 
-            {/* Amount and Currency */}
+          <form onSubmit={handleSave} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="amount" className="block text-sm font-medium mb-2">
@@ -227,10 +216,9 @@ export default function NewExpensePage() {
                   type="number"
                   step="0.01"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(event) => setAmount(event.target.value)}
                   required
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700"
-                  placeholder="0.00"
                 />
               </div>
               <div>
@@ -240,7 +228,7 @@ export default function NewExpensePage() {
                 <select
                   id="currency"
                   value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
+                  onChange={(event) => setCurrency(event.target.value)}
                   required
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700"
                 >
@@ -253,7 +241,6 @@ export default function NewExpensePage() {
               </div>
             </div>
 
-            {/* Category */}
             <div>
               <label htmlFor="category" className="block text-sm font-medium mb-2">
                 Category *
@@ -261,7 +248,7 @@ export default function NewExpensePage() {
               <select
                 id="category"
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(event) => setCategory(event.target.value)}
                 required
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700"
               >
@@ -274,7 +261,6 @@ export default function NewExpensePage() {
               </select>
             </div>
 
-            {/* Merchant Name */}
             <div>
               <label htmlFor="merchantName" className="block text-sm font-medium mb-2">
                 Merchant Name
@@ -283,9 +269,8 @@ export default function NewExpensePage() {
                 id="merchantName"
                 type="text"
                 value={merchantName}
-                onChange={(e) => setMerchantName(e.target.value)}
+                onChange={(event) => setMerchantName(event.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700"
-                placeholder="e.g., Starbucks"
               />
             </div>
 
@@ -299,15 +284,13 @@ export default function NewExpensePage() {
                   type="number"
                   min="1"
                   value={entertainmentHeadcount}
-                  onChange={(e) => setEntertainmentHeadcount(e.target.value)}
+                  onChange={(event) => setEntertainmentHeadcount(event.target.value)}
                   required
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700"
-                  placeholder="e.g., 3"
                 />
               </div>
             )}
 
-            {/* Date */}
             <div>
               <label htmlFor="expenseDate" className="block text-sm font-medium mb-2">
                 Date *
@@ -316,13 +299,12 @@ export default function NewExpensePage() {
                 id="expenseDate"
                 type="date"
                 value={expenseDate}
-                onChange={(e) => setExpenseDate(e.target.value)}
+                onChange={(event) => setExpenseDate(event.target.value)}
                 required
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700"
               />
             </div>
 
-            {/* Trip (Optional) */}
             {trips.length > 0 && (
               <div>
                 <label htmlFor="trip" className="block text-sm font-medium mb-2">
@@ -331,7 +313,7 @@ export default function NewExpensePage() {
                 <select
                   id="trip"
                   value={tripId}
-                  onChange={(e) => setTripId(e.target.value)}
+                  onChange={(event) => setTripId(event.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700"
                 >
                   <option value="">No trip</option>
@@ -344,20 +326,6 @@ export default function NewExpensePage() {
               </div>
             )}
 
-            {/* Location */}
-            {location && (
-              <div>
-                <label className="block text-sm font-medium mb-2">Location</label>
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700"
-                />
-              </div>
-            )}
-
-            {/* Description */}
             <div>
               <label htmlFor="description" className="block text-sm font-medium mb-2">
                 Description (Optional)
@@ -365,29 +333,27 @@ export default function NewExpensePage() {
               <textarea
                 id="description"
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(event) => setDescription(event.target.value)}
                 rows={3}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700"
-                placeholder="Add notes about this expense"
               />
             </div>
 
-            {/* Submit Buttons */}
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={(e) => handleSubmit(e, true)}
-                disabled={loading}
-                className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 transition font-medium"
-              >
-                Save Draft
-              </button>
+            <div className="flex flex-wrap gap-3">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={saving}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition font-medium"
               >
-                {loading ? 'Submitting...' : 'Submit for Approval'}
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={saving || status !== 'draft'}
+                className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 disabled:opacity-50 transition font-medium"
+              >
+                Delete Draft
               </button>
             </div>
           </form>

@@ -12,6 +12,15 @@ CREATE TABLE IF NOT EXISTS public.users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create manager allowed emails table
+CREATE TABLE IF NOT EXISTS public.manager_allowed_emails (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    manager_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    email TEXT UNIQUE NOT NULL CHECK (email ~* '^[^@\\s]+@wphome\\.com$'),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create trips table
 CREATE TABLE IF NOT EXISTS public.trips (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -36,6 +45,7 @@ CREATE TABLE IF NOT EXISTS public.expenses (
     category TEXT NOT NULL,
     merchant_name TEXT,
     description TEXT,
+    entertainment_headcount INTEGER,
     expense_date DATE NOT NULL,
     receipt_url TEXT,
     location TEXT,
@@ -57,6 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_expenses_status ON public.expenses(status);
 CREATE INDEX IF NOT EXISTS idx_expenses_expense_date ON public.expenses(expense_date);
 CREATE INDEX IF NOT EXISTS idx_trips_user_id ON public.trips(user_id);
 CREATE INDEX IF NOT EXISTS idx_users_manager_id ON public.users(manager_id);
+CREATE INDEX IF NOT EXISTS idx_manager_allowed_emails_manager_id ON public.manager_allowed_emails(manager_id);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -71,6 +82,9 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_manager_allowed_emails_updated_at BEFORE UPDATE ON public.manager_allowed_emails
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_trips_updated_at BEFORE UPDATE ON public.trips
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -80,14 +94,28 @@ CREATE TRIGGER update_expenses_updated_at BEFORE UPDATE ON public.expenses
 -- Auto-create user profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+    assigned_manager_id UUID;
+    assigned_role TEXT := 'employee';
 BEGIN
-    INSERT INTO public.users (id, email, full_name, role)
+    IF lower(NEW.email) = 'fahd.akhtar@wphome.com' THEN
+        assigned_role := 'admin';
+    END IF;
+
+    SELECT manager_id INTO assigned_manager_id
+    FROM public.manager_allowed_emails
+    WHERE lower(email) = lower(NEW.email)
+    LIMIT 1;
+
+    INSERT INTO public.users (id, email, full_name, role, manager_id)
     VALUES (
         NEW.id,
         NEW.email,
         COALESCE(NEW.raw_user_meta_data->>'full_name', 'User'),
-        'employee'
+        assigned_role,
+        assigned_manager_id
     );
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -101,6 +129,7 @@ CREATE TRIGGER on_auth_user_created
 
 -- Enable RLS on all tables
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.manager_allowed_emails ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 
@@ -134,6 +163,28 @@ CREATE POLICY "Users can update their own profile"
 CREATE POLICY "Admins can update all users"
     ON public.users FOR UPDATE
     USING (public.get_user_role(auth.uid()::uuid) = 'admin');
+
+-- Manager allowed emails policies
+CREATE POLICY "Managers can view their allowed emails"
+    ON public.manager_allowed_emails FOR SELECT
+    USING (manager_id = auth.uid()::uuid);
+
+CREATE POLICY "Managers can add their allowed emails"
+    ON public.manager_allowed_emails FOR INSERT
+    WITH CHECK (manager_id = auth.uid()::uuid);
+
+CREATE POLICY "Managers can update their allowed emails"
+    ON public.manager_allowed_emails FOR UPDATE
+    USING (manager_id = auth.uid()::uuid);
+
+CREATE POLICY "Managers can delete their allowed emails"
+    ON public.manager_allowed_emails FOR DELETE
+    USING (manager_id = auth.uid()::uuid);
+
+CREATE POLICY "Admins can manage all allowed emails"
+    ON public.manager_allowed_emails FOR ALL
+    USING (public.get_user_role(auth.uid()::uuid) = 'admin')
+    WITH CHECK (public.get_user_role(auth.uid()::uuid) = 'admin');
 
 -- Note: User profile creation is handled automatically by the on_auth_user_created trigger
 -- No manual INSERT policy needed for users table
