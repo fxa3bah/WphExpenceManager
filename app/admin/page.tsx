@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import BottomNav from '@/components/BottomNav'
 import ManagerAssignment from '@/components/ManagerAssignment'
+import ManagedEmailsPanel from '@/components/ManagedEmailsPanel'
 import Link from 'next/link'
 
 export default async function AdminPage() {
@@ -105,6 +106,14 @@ export default async function AdminPage() {
             <div className="text-xs text-green-600 dark:text-green-400 mb-1">Approved</div>
             <div className="text-2xl font-bold text-green-700 dark:text-green-300">{overallStats.totalApprovedExpenses}</div>
           </div>
+        </div>
+
+        <div className="mb-6">
+          <ManagedEmailsPanel
+            currentUserId={user.id}
+            isAdmin={profile?.role === 'admin'}
+            managers={managers || []}
+          />
         </div>
 
         {/* User Table */}
