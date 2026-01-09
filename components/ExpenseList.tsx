@@ -114,11 +114,6 @@ export default function ExpenseList({ initialExpenses, trips }: ExpenseListProps
     const expense = expenses.find(e => e.id === id)
     if (!expense) return
 
-    if (expense.status !== 'draft') {
-      setMessage({ type: 'error', text: 'Only draft expenses can be deleted' })
-      return
-    }
-
     if (!confirm('Delete this expense?')) return
 
     setLoading(true)
@@ -175,12 +170,6 @@ export default function ExpenseList({ initialExpenses, trips }: ExpenseListProps
   const handleBulkDelete = async () => {
     if (selectedExpenses.length === 0) {
       setMessage({ type: 'error', text: 'Select at least one expense' })
-      return
-    }
-
-    const nonDrafts = expenses.filter(e => selectedIds.has(e.id) && e.status !== 'draft')
-    if (nonDrafts.length > 0) {
-      setMessage({ type: 'error', text: 'Only draft expenses can be deleted' })
       return
     }
 
@@ -400,17 +389,15 @@ export default function ExpenseList({ initialExpenses, trips }: ExpenseListProps
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </Link>
-                    {expense.status === 'draft' && (
-                      <button
-                        onClick={() => handleDelete(expense.id)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                        title="Delete"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleDelete(expense.id)}
+                      className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                      title="Delete"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -455,14 +442,12 @@ export default function ExpenseList({ initialExpenses, trips }: ExpenseListProps
                 <Link href={`/expenses/${expense.id}/edit`} className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg">
                   Edit
                 </Link>
-                {expense.status === 'draft' && (
-                  <button
-                    onClick={() => handleDelete(expense.id)}
-                    className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg"
-                  >
-                    Delete
-                  </button>
-                )}
+                <button
+                  onClick={() => handleDelete(expense.id)}
+                  className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg"
+                >
+                  Delete
+                </button>
               </div>
             </div>
           </div>
