@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import BottomNav from '@/components/BottomNav'
 import LogoutButton from '@/components/LogoutButton'
+import ManagerSelector from '@/components/ManagerSelector'
 import Link from 'next/link'
 
 export default async function ProfilePage() {
@@ -56,14 +57,13 @@ export default async function ProfilePage() {
             </div>
           </div>
 
-          {/* Manager Info */}
-          {profile?.manager && (
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mb-4">
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Reports to</div>
-              <div className="font-medium">{profile.manager.full_name}</div>
-              <div className="text-sm text-gray-500">{profile.manager.email}</div>
-            </div>
-          )}
+          {/* Manager Selector */}
+          <ManagerSelector
+            userId={user.id}
+            currentManagerId={profile?.manager_id || null}
+            currentManagerName={profile?.manager?.full_name}
+            currentManagerEmail={profile?.manager?.email}
+          />
 
           {/* Stats */}
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
