@@ -14,7 +14,7 @@ export type Database = {
           id: string
           email: string
           full_name: string
-          role: 'employee' | 'manager' | 'admin'
+          role: 'employee' | 'manager' | 'admin' | 'ceo'
           manager_id: string | null
           created_at: string
           updated_at: string
@@ -48,7 +48,7 @@ export type Database = {
           category: string
           merchant_name: string | null
           description: string | null
-          entertainment_headcount: number | null
+          entertainment_people_count: number | null
           expense_date: string
           receipt_url: string | null
           location: string | null
@@ -71,7 +71,7 @@ export type Database = {
           category: string
           merchant_name?: string | null
           description?: string | null
-          entertainment_headcount?: number | null
+          entertainment_people_count?: number | null
           expense_date: string
           receipt_url?: string | null
           location?: string | null
@@ -94,7 +94,7 @@ export type Database = {
           category?: string
           merchant_name?: string | null
           description?: string | null
-          entertainment_headcount?: number | null
+          entertainment_people_count?: number | null
           expense_date?: string
           receipt_url?: string | null
           location?: string | null
