@@ -20,6 +20,7 @@ const EXPENSE_CATEGORIES = [
 const CURRENCIES = [
   { code: 'USD', symbol: '$', name: 'US Dollar' },
   { code: 'BHD', symbol: 'BD', name: 'Bahraini Dinar' },
+  { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham' },
   { code: 'EUR', symbol: '€', name: 'Euro' },
   { code: 'PKR', symbol: '₨', name: 'Pakistani Rupee' },
   { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
@@ -46,6 +47,7 @@ export default function NewExpensePage() {
   const [trips, setTrips] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
   useEffect(() => {
     async function loadUser() {
@@ -149,13 +151,25 @@ export default function NewExpensePage() {
         submitted_at: isDraft ? null : new Date().toISOString(),
       }
 
-      const { error: insertError } = await supabase
+      const { data: insertedExpense, error: insertError } = await supabase
         .from('expenses')
         .insert(expenseData)
+        .select()
+        .single()
 
-      if (insertError) throw insertError
+      if (insertError) {
+        console.error('Insert error:', insertError)
+        throw new Error(insertError.message || 'Failed to save expense')
+      }
 
-      router.push('/dashboard')
+      if (!insertedExpense) {
+        throw new Error('Expense was not created. Please check your permissions.')
+      }
+
+      // Wait a moment to ensure database write completes
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      router.push('/expenses')
       router.refresh()
     } catch (err: any) {
       setError(err.message || 'Failed to create expense')
