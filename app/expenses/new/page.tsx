@@ -41,6 +41,7 @@ export default function NewExpensePage() {
   const supabase = createClient()
 
   const [userId, setUserId] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState('USD')
@@ -67,6 +68,18 @@ export default function NewExpensePage() {
         return
       }
       setUserId(user.id)
+
+      // Fetch user profile to get email
+      const { data: profile } = await supabase
+        .from('users')
+        .select('email')
+        .eq('id', user.id)
+        .single()
+
+      if (profile) {
+        setUserEmail(profile.email)
+      }
+
       loadTrips(user.id)
     }
     loadUser()
@@ -149,6 +162,17 @@ export default function NewExpensePage() {
         receiptUrl = publicUrl
       }
 
+      // Determine status based on user role
+      // CEO (Jonathan Storie) expenses are automatically approved
+      const isCEO = userEmail?.toLowerCase() === 'jonathan.storie@wphome.com'
+      let expenseStatus = 'pending'
+
+      if (isDraft) {
+        expenseStatus = 'draft'
+      } else if (isCEO) {
+        expenseStatus = 'approved'
+      }
+
       // Create expense
       const expenseData = {
         user_id: userId,
@@ -168,8 +192,10 @@ export default function NewExpensePage() {
         location: location || null,
         gps_coordinates: gpsCoordinates || null,
         ocr_data: ocrData || null,
-        status: isDraft ? 'draft' : 'pending',
+        status: expenseStatus,
         submitted_at: isDraft ? null : new Date().toISOString(),
+        approved_at: isCEO && !isDraft ? new Date().toISOString() : null,
+        approved_by: isCEO && !isDraft ? userId : null,
       }
 
       const { data: insertedExpense, error: insertError } = await supabase

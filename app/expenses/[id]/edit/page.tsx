@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { deleteExpense } from '@/app/expenses/actions'
 import { format } from 'date-fns'
 
 const EXPENSE_CATEGORIES = [
@@ -146,22 +147,15 @@ export default function EditExpensePage() {
   }
 
   const handleDelete = async () => {
-    if (status !== 'draft') {
-      setError('Only draft expenses can be deleted.')
-      return
-    }
-    if (!expenseId || !window.confirm('Delete this draft expense?')) return
+    if (!expenseId || !window.confirm('Delete this expense permanently?')) return
 
     setSaving(true)
     setError(null)
 
-    const { error: deleteError } = await supabase
-      .from('expenses')
-      .delete()
-      .eq('id', expenseId)
+    const result = await deleteExpense(expenseId)
 
-    if (deleteError) {
-      setError(deleteError.message)
+    if (result.error) {
+      setError(result.error)
       setSaving(false)
       return
     }
@@ -350,10 +344,10 @@ export default function EditExpensePage() {
               <button
                 type="button"
                 onClick={handleDelete}
-                disabled={saving || status !== 'draft'}
+                disabled={saving}
                 className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 disabled:opacity-50 transition font-medium"
               >
-                Delete Draft
+                Delete
               </button>
             </div>
           </form>
