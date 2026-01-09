@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import BottomNav from '@/components/BottomNav'
 import ManagerAssignment from '@/components/ManagerAssignment'
-import ManagerEmailAssignments from '@/components/ManagerEmailAssignments'
+import ManagedEmailsPanel from '@/components/ManagedEmailsPanel'
 import Link from 'next/link'
 
 export default async function AdminPage() {
@@ -110,10 +110,10 @@ export default async function AdminPage() {
 
         {/* Manager Email Assignments - Only show for managers and admins */}
         <div className="mb-6">
-          <ManagerEmailAssignments
-            managerId={user.id}
-            managerName={profile?.full_name || 'Manager'}
+          <ManagedEmailsPanel
+            currentUserId={user.id}
             isAdmin={profile?.role === 'admin'}
+            managers={managers || []}
           />
         </div>
 
