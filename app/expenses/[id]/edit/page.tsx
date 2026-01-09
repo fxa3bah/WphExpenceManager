@@ -82,7 +82,7 @@ export default function EditExpensePage() {
       setCategory(expense.category || '')
       setMerchantName(expense.merchant_name || '')
       setDescription(expense.description || '')
-      setEntertainmentHeadcount(expense.entertainment_people_count?.toString() || '')
+      setEntertainmentPeopleCount(expense.entertainment_people_count?.toString() || '')
       setExpenseDate(expense.expense_date || format(new Date(), 'yyyy-MM-dd'))
       setTripId(expense.trip_id || '')
       setStatus(expense.status || 'draft')
