@@ -4,6 +4,9 @@ import BottomNav from '@/components/BottomNav'
 import FAB from '@/components/FAB'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function DashboardPage() {
   const supabase = await createClient()
 
@@ -30,9 +33,9 @@ export default async function DashboardPage() {
       .limit(10)
   ])
 
-  // Get pending expenses for managers/admins (only if needed)
+  // Get pending expenses for managers/admins/CEO (only if needed)
   let pendingApprovals: any[] = []
-  if (profile?.role === 'manager' || profile?.role === 'admin') {
+  if (profile?.role === 'manager' || profile?.role === 'admin' || profile?.role === 'ceo') {
     if (profile.role === 'manager') {
       // For managers: get reports first, then pending expenses
       const { data: reports } = await supabase
@@ -52,7 +55,7 @@ export default async function DashboardPage() {
         pendingApprovals = data || []
       }
     } else {
-      // For admins: get all pending
+      // For admins and CEO: get all pending
       const { data } = await supabase
         .from('expenses')
         .select('*, users:user_id(full_name, email)')
@@ -83,9 +86,36 @@ export default async function DashboardPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Welcome back, {profile?.full_name?.split(' ')[0]}!</h1>
           <p className="text-gray-600 dark:text-gray-400">
-            {profile?.role === 'admin' ? 'Admin Dashboard' : profile?.role === 'manager' ? 'Manager Dashboard' : 'Track your expenses'}
+            {profile?.role === 'ceo' ? 'CEO Dashboard' : profile?.role === 'admin' ? 'Admin Dashboard' : profile?.role === 'manager' ? 'Manager Dashboard' : 'Track your expenses'}
           </p>
         </div>
+
+        {/* Pending Approvals Alert for Managers/Admins/CEO */}
+        {pendingApprovals.length > 0 && (
+          <div className="mb-6 p-4 bg-orange-100 dark:bg-orange-900/30 border-l-4 border-orange-500 rounded-lg">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <svg className="w-6 h-6 text-orange-600 dark:text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <div className="font-semibold text-orange-900 dark:text-orange-200">
+                    {pendingApprovals.length} {pendingApprovals.length === 1 ? 'expense' : 'expenses'} awaiting your approval
+                  </div>
+                  <div className="text-sm text-orange-700 dark:text-orange-300">
+                    Review and approve pending expense submissions
+                  </div>
+                </div>
+              </div>
+              <Link
+                href="/approvals"
+                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition whitespace-nowrap"
+              >
+                Review Now
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-4 mb-8">
@@ -112,8 +142,8 @@ export default async function DashboardPage() {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">Pending Approvals</h2>
-              <Link href="/expenses?tab=approvals" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
-                View all
+              <Link href="/approvals" className="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                View All →
               </Link>
             </div>
             <div className="space-y-3">
