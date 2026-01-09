@@ -103,7 +103,7 @@ export default function EditExpensePage() {
 
   useEffect(() => {
     if (category !== 'Entertainment') {
-      setEntertainmentHeadcount('')
+      setEntertainmentPeopleCount('')
     }
   }, [category])
 
