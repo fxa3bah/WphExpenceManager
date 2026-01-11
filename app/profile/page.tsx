@@ -27,14 +27,29 @@ export default async function ProfilePage() {
   // Get expense stats
   const { data: expenses } = await supabase
     .from('expenses')
-    .select('status, amount')
+    .select('status, amount, currency')
     .eq('user_id', user.id)
+
+  const currencyTotals = (expenses || []).reduce((acc, e) => {
+    const currency = e.currency || 'USD'
+    acc[currency] = (acc[currency] || 0) + parseFloat(e.amount || 0)
+    return acc
+  }, {} as Record<string, number>)
+
+  const currencies = Object.keys(currencyTotals)
+  const totalAmountDisplay = currencies.length === 0
+    ? '$0.00'
+    : currencies.length === 1
+    ? `${currencyTotals[currencies[0]].toFixed(2)} ${currencies[0]}`
+    : Object.entries(currencyTotals)
+        .map(([curr, amt]) => `${amt.toFixed(2)} ${curr}`)
+        .join(', ')
 
   const stats = {
     total: expenses?.length || 0,
     pending: expenses?.filter(e => e.status === 'pending').length || 0,
     approved: expenses?.filter(e => e.status === 'approved').length || 0,
-    totalAmount: expenses?.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0) || 0,
+    totalAmountDisplay,
   }
 
   return (
@@ -82,7 +97,7 @@ export default async function ProfilePage() {
               </div>
               <div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">Total Amount</div>
-                <div className="text-2xl font-bold">${stats.totalAmount.toFixed(2)}</div>
+                <div className="text-lg font-bold">{stats.totalAmountDisplay}</div>
               </div>
               <div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">Pending</div>
