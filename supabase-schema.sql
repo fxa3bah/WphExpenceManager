@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS public.expenses (
     trip_id UUID REFERENCES public.trips(id) ON DELETE SET NULL,
     amount DECIMAL(10, 2) NOT NULL,
     currency TEXT NOT NULL DEFAULT 'USD',
+    usd_amount DECIMAL(10, 2),
+    exchange_rate DECIMAL(10, 6),
     category TEXT NOT NULL,
     merchant_name TEXT,
     description TEXT,

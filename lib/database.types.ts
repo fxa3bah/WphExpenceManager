@@ -45,6 +45,8 @@ export type Database = {
           trip_id: string | null
           amount: number
           currency: string
+          usd_amount: number | null
+          exchange_rate: number | null
           category: string
           merchant_name: string | null
           description: string | null
@@ -68,6 +70,8 @@ export type Database = {
           trip_id?: string | null
           amount: number
           currency?: string
+          usd_amount?: number | null
+          exchange_rate?: number | null
           category: string
           merchant_name?: string | null
           description?: string | null
@@ -91,6 +95,8 @@ export type Database = {
           trip_id?: string | null
           amount?: number
           currency?: string
+          usd_amount?: number | null
+          exchange_rate?: number | null
           category?: string
           merchant_name?: string | null
           description?: string | null

@@ -70,14 +70,26 @@ export default async function DashboardPage() {
   const totalPending = expenses?.filter(e => e.status === 'pending').length || 0
   const totalApproved = expenses?.filter(e => e.status === 'approved').length || 0
   const totalDraft = expenses?.filter(e => e.status === 'draft').length || 0
-  const thisMonthTotal = expenses?.reduce((sum, e) => {
+
+  // Calculate this month's expenses by currency
+  const thisMonthExpenses = expenses?.filter(e => {
     const expenseDate = new Date(e.expense_date)
     const now = new Date()
-    if (expenseDate.getMonth() === now.getMonth() && expenseDate.getFullYear() === now.getFullYear()) {
-      return sum + parseFloat(e.amount || 0)
-    }
-    return sum
-  }, 0) || 0
+    return expenseDate.getMonth() === now.getMonth() && expenseDate.getFullYear() === now.getFullYear()
+  }) || []
+
+  const currencyTotals = thisMonthExpenses.reduce((acc, e) => {
+    const currency = e.currency || 'USD'
+    acc[currency] = (acc[currency] || 0) + parseFloat(e.amount || 0)
+    return acc
+  }, {} as Record<string, number>)
+
+  const currencies = Object.keys(currencyTotals)
+  const displayTotal = currencies.length === 0
+    ? '$0.00'
+    : currencies.length === 1
+    ? `${currencyTotals[currencies[0]].toFixed(2)} ${currencies[0]}`
+    : `Mixed (${currencies.length} currencies)`
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -121,7 +133,7 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-2 gap-4 mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">This Month</div>
-            <div className="text-2xl font-bold">${thisMonthTotal.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{displayTotal}</div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Pending</div>
